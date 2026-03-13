@@ -86,6 +86,28 @@ int32_t lsm6ds3_write_reg(const stmdev_ctx_t *ctx, uint8_t reg,
 void IMU_Init(void)
 {
     // Initialize LSM6DS3
+    // IMU INT
+    gpio_config_t io_conf = {
+        .pin_bit_mask = 1ULL << _IMU_LSM6DS3_INT_GPIO_NUM,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    // IMU CS
+    io_conf.pin_bit_mask = 1ULL << _IMU_LSM6DS3_CS_GPIO_NUM;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    gpio_set_level(_IMU_LSM6DS3_CS_GPIO_NUM, 1); // active low
+    // ADC1 CS
+    io_conf.pin_bit_mask = 1ULL << _ADC1_CS_GPIO_NUM;
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    gpio_set_level(_ADC1_CS_GPIO_NUM, 1); // active low
+    // ADC2 CS
+    io_conf.pin_bit_mask = 1ULL << _ADC2_CS_GPIO_NUM;
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    gpio_set_level(_ADC2_CS_GPIO_NUM, 1); // active low
 }
 
 void Sensors_Init(void)
@@ -102,11 +124,11 @@ void Sensors_Init(void)
     ESP_ERROR_CHECK(spi_bus_initialize(_SENSORS_SPI_HOST, &buscfg, SPI_DMA_DISABLED));
     // Lump all sensors into one device and switch between them using manual CS control
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 8 MHz
+        .clock_speed_hz = 8 * 1000 * 1000, // Clock out at 8 MHz
         .command_bits = 0,                 // no command phase, only data
         .address_bits = 0,                 // no address phase, only data
         .dummy_bits = 0,                   // no dummy phase
-        .mode = 2,                         // SPI mode 0
+        .mode = 2,                         // SPI mode 2
         .spics_io_num = -1,                // we will use manual CS control
         .queue_size = 2,
     };

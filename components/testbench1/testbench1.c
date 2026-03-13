@@ -341,122 +341,132 @@ extern spi_device_handle_t _sensors_hspidevice;
 void test_ad_read()
 {
     uint16_t values[16];
-    uint16_t dummy;
+    uint16_t dummy1;
     AD_CFG_u cfg;
     ESP_LOGI("AD READ", "Entered AD read function");
     Utility_Init();
-    debug_disable_pins();
+    // debug_disable_pins();
     Utility_LED_SetColor(0, 0, 0); // Clear LED
     ESP_LOGI("AD READ", "Pins configured. Starting sensor initialization.");
     Sensors_Init(); // Initialize sensors, including the ADC
     ESP_LOGI("AD READ", "Initialization complete. Starting ADC read loop.");
+    // Configure USB SERIAL JTAG
+    usb_serial_jtag_driver_config_t usb_serial_jtag_config = {
+        .rx_buffer_size = BUF_SIZE,
+        .tx_buffer_size = BUF_SIZE,
+    };
+    ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&usb_serial_jtag_config));
+    ESP_LOGI("AD READ", "USB_SERIAL_JTAG init done");
+
     while (1)
     {
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 0, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 0, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         // read using the Read After Conversion (RAC) method
-        AD_Transaction(_sensors_hspidevice, &cfg, &dummy); // dummy read
+        AD_Transaction(_sensors_hspidevice, &cfg, &dummy1); // dummy read
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 1, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
-        AD_Transaction(_sensors_hspidevice, &cfg, &dummy); // dummy read
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 1, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        AD_Transaction(_sensors_hspidevice, &cfg, &dummy1); // dummy read
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 2, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 2, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 3, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 3, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 1);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 4, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 4, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 2);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 5, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 5, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 3);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 6, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 6, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 4);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 5);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(0, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 6);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC1_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(0, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 7);
         gpio_set_level(_ADC1_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
 
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 0, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 0, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         // read using the Read After Conversion (RAC) method
-        AD_Transaction(_sensors_hspidevice, &cfg, &dummy); // dummy read
+        AD_Transaction(_sensors_hspidevice, &cfg, &dummy1); // dummy read
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 1, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
-        AD_Transaction(_sensors_hspidevice, &cfg, &dummy); // dummy read
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 1, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        AD_Transaction(_sensors_hspidevice, &cfg, &dummy1); // dummy read
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 2, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 2, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 8);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 3, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 3, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 9);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 4, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 4, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 10);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 5, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 5, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 11);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 6, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 6, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 12);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 13);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(0, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 14);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
         gpio_set_level(_ADC2_CS_GPIO_NUM, 0);
-        cfg = AD_BuildConfig(1, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_BUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        cfg = AD_BuildConfig(0, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
         AD_Transaction(_sensors_hspidevice, &cfg, values + 15);
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
 
-        ESP_LOGI("AD7689", "Read value: \n %d %d %d %d \n %d %d %d %d \n %d %d %d %d \n %d %d %d %d \n", values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14], values[15]);
-        ets_delay_us(1000000); // Delay for 1 second before the next round
+        sprintf((char *)dummy, "A1CH1:%d, A1CH2:%d, A1CH3:%d, A1CH4:%d, A1CH5:%d, A1CH6:%d, A1CH7:%d, A1CH8:%d, A2CH11:%d, A2CH2:%d, A2CH3:%d, A2CH4:%d, A2CH5:%d, A2CH6:%d, A2CH7:%d, A2CH8:%d \n", (int16_t)values[0], (int16_t)values[1], (int16_t)values[2], (int16_t)values[3], (int16_t)values[4], (int16_t)values[5], (int16_t)values[6], (int16_t)values[7], (int16_t)values[8], (int16_t)values[9], (int16_t)values[10], (int16_t)values[11], (int16_t)values[12], (int16_t)values[13], (int16_t)values[14], (int16_t)values[15]);
+        usb_serial_jtag_write_bytes(dummy, strlen((char *)dummy), 0);
+        // ESP_LOGI("AD7689", "A1CH1:%d, A1CH2:%d, A1CH3:%d, A1CH4:%d, A1CH5:%d, A1CH6:%d, A1CH7:%d, A1CH8:%d, A2CH11:%d, A2CH2:%d, A2CH3:%d, A2CH4:%d, A2CH5:%d, A2CH6:%d, A2CH7:%d, A2CH8:%d \n", (int16_t)values[0], (int16_t)values[1], (int16_t)values[2], (int16_t)values[3], (int16_t)values[4], (int16_t)values[5], (int16_t)values[6], (int16_t)values[7], (int16_t)values[8], (int16_t)values[9], (int16_t)values[10], (int16_t)values[11], (int16_t)values[12], (int16_t)values[13], (int16_t)values[14], (int16_t)values[15]);
+        ets_delay_us(20000); // Delay for 0.02 second before the next round
     }
 }
