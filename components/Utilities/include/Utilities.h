@@ -1,5 +1,11 @@
+#ifndef _H_UTILITIES_H
+#define _H_UTILITIES_H
+
 #include <esp_err.h>
 #include <esp_log.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 esp_err_t Utility_Init();
 
@@ -16,3 +22,8 @@ uint32_t Utility_Timer_GetOverflow();
 bool Utility_Timer_IsReady();
 
 void Utility_Timer_ClearReady();
+
+#ifdef __cplusplus
+}
+#endif
+#endif

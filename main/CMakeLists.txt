@@ -1,3 +1,2 @@
-idf_component_register(SRCS "main.c"
-                    REQUIRES testbench1
-                    INCLUDE_DIRS ".")
+set(APP_MAIN_ROOT ${CMAKE_CURRENT_LIST_DIR})
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/custom.cmake)

@@ -1,0 +1,17 @@
+menu "Sensor Device Configuration"
+    menu "imu"
+        config LSM6DS3_SUPPORT
+        bool "Support LSM6DS3 Chip"
+        default y
+        help
+            Enable this option to support LSM6DS3.
+
+    endmenu
+    menu "ad"
+        config AD7689_SUPPORT
+        bool "Support AD7689 Chip"
+        default y
+        help
+            Enable this option to support AD7689.
+    endmenu
+ endmenu

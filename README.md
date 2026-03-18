@@ -1,32 +1,21 @@
-# _Sample project_
+# wristband
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+## protocol
 
-This is the simplest buildable example. The example is used by command `idf.py create-project`
-that copies the project to user specified path and set it's name. For more information follow the [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project)
+little-endian
 
+| Field | Magic | Length                      | Version  | Message ID | Command | Data                   | Crc          |
+| ----- | ----- | --------------------------- | -------- | ---------- | ------- | ---------------------- | ------------ |
+| size  | 1BYTE | 2BYTE                       | 4BYTE    | 4BYTE      | 2BYTE   | (len-[magic-crc]) BYTE | 2BYTE        |
+|       | 0xAA  | 包含magic-crc整个数据的长度 | 协议版本 | 消息ID     |         |                        | crc16-modbus |
 
+### command
 
-## How to use example
-We encourage the users to use the example as a template for the new projects.
-A recommended way is to follow the instructions on a [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project).
-
-## Example folder contents
-
-The project **sample_project** contains one source file in C language [main.c](main/main.c). The file is located in folder [main](main).
-
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt`
-files that provide set of directives and instructions describing the project's source files and targets
-(executable, library, or both). 
-
-Below is short explanation of remaining files in the project folder.
-
-```
-├── CMakeLists.txt
-├── main
-│   ├── CMakeLists.txt
-│   └── main.c
-└── README.md                  This is the file you are currently reading
-```
-Additionally, the sample project contains Makefile and component.mk files, used for the legacy Make based build system. 
-They are not used or needed when building with CMake and idf.py.
+| Command  | Name                    | Data size（Byte） | Description             |
+| :------- | :---------------------- | :---------------- | :---------------------- |
+| `0x01` | BLOCK_DATA_SEMG         | 48                | 16-channel sEMG data    |
+| `0x02` | BLOCK_DATA_IMU          | 36                | 9-axis IMU data         |
+| `0x03` | BLOCK_DATA_CAMERA_UP    | -                 | Camera data (reserved)  |
+| `0x04` | BLOCK_DATA_CAMERA_DOWN  | -                 | Camera data (reserved)  |
+| `0x05` | BLOCK_DATA_VIBRATE_DATA | -                 | Vibration feedback data |
+| `0x06` | BLOCK_DATA_BATTERY      | -                 | Battery status          |

@@ -1,0 +1,14 @@
+if(ESP_PLATFORM)
+  include(${CMAKE_CURRENT_LIST_DIR}/env_support/cmake/esp.cmake)
+else()
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+  set(CPACK_PROJECT_NAME ${PROJECT_NAME})
+  set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
+
+  set(CMAKE_C_STANDARD 11)
+  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+  FILE(GLOB SC_FILES "crc.c" "protocol_parse.cpp")
+  include_directories(${CMAKE_CURRENT_LIST_DIR}/)
+endif()
