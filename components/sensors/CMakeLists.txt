@@ -1,0 +1,5 @@
+if(ESP_PLATFORM)
+    set(SENSOR_IF_DIR ${CMAKE_CURRENT_LIST_DIR})
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/esp.cmake)
+else()
+endif()
