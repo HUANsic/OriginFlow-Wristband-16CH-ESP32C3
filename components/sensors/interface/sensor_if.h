@@ -18,11 +18,12 @@ typedef struct sensor_if_t sensor_if_t;
  * @brief Structure for codec interface
  */
 struct sensor_if_t {
-  int (*set_reg)(const sensor_if_t *h, int reg, int value);                /*!< Set register value to codec */
-  int (*get_reg)(const sensor_if_t *h, int reg, int *value);               /*!< Get register value from codec */
-  int (*read_channel_data)(const sensor_if_t *h, int channel, void *data); /*!< Read data from codec */
-  int (*read_all_channel_data)(const sensor_if_t *h, void *data);          /*!< Read data from codec */
-  void (*dump_reg)(const sensor_if_t *h);                                  /*!< Dump all register settings */
+  int (*set_reg)(const sensor_if_t *h, int reg, int value);                        /*!< Set register value to codec */
+  int (*get_reg)(const sensor_if_t *h, int reg, int *value);                       /*!< Get register value from codec */
+  int (*write_read_reg)(const sensor_if_t *h, int reg, int value, void *out_data); /*!< Get register value from codec */
+  int (*read_channel_data)(const sensor_if_t *h, int channel, void *data);         /*!< Read data from codec */
+  int (*read_all_channel_data)(const sensor_if_t *h, void *data);                  /*!< Read data from codec */
+  void (*dump_reg)(const sensor_if_t *h);                                          /*!< Dump all register settings */
 };
 
 /**

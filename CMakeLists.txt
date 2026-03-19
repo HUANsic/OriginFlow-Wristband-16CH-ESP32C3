@@ -5,4 +5,5 @@
 cmake_minimum_required(VERSION 3.5)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+add_definitions(-DUSE_ESP_LOG)
 project(Wristband-16CH)

@@ -4,10 +4,10 @@
 
 little-endian
 
-| Field | Magic | Length                      | Version  | Message ID | Command | Data                   | Crc          |
-| ----- | ----- | --------------------------- | -------- | ---------- | ------- | ---------------------- | ------------ |
-| size  | 1BYTE | 2BYTE                       | 4BYTE    | 4BYTE      | 2BYTE   | (len-[magic-crc]) BYTE | 2BYTE        |
-|       | 0xAA  | 包含magic-crc整个数据的长度 | 协议版本 | 消息ID     |         |                        | crc16-modbus |
+| Field | Magic | Length                      | Version  | Message ID | TIMESTAMP   | Command | Data                   | Crc          |
+| ----- | ----- | --------------------------- | -------- | ---------- | ----------- | ------- | ---------------------- | ------------ |
+| size  | 1BYTE | 2BYTE                       | 4BYTE    | 4BYTE      | 8BYTE       | 2BYTE   | (len-[magic-crc]) BYTE | 2BYTE        |
+|       | 0xAA  | 包含magic-crc整个数据的长度 | 协议版本 | 消息ID     | int64时间戳 |         |                        | crc16-modbus |
 
 ### command
 

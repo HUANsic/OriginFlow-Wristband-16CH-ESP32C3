@@ -2,9 +2,7 @@ set(EMBED_FILES "")
 
 # list(APPEND EMBED_FILES
 # )
-
-
-set(SRC_DIRS ${SRC_DIRS} ${APP_MAIN_ROOT}/ ${APP_MAIN_ROOT}  ${APP_MAIN_ROOT}/bluetooth)
+set(SRC_DIRS ${SRC_DIRS} ${APP_MAIN_ROOT}/ ${APP_MAIN_ROOT} ${APP_MAIN_ROOT}/bluetooth)
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ".")
 set(APP_REQUIRES
     esp_driver_i2s
@@ -16,11 +14,13 @@ set(APP_REQUIRES
     console
     driver
     esp_adc
+
     # esp_http_server
     # esp_https_ota
     # app_update
     sensors
     LSM6DS3
+
     # testbench1
     protocol_parser
 )
@@ -29,28 +29,29 @@ idf_component_register(SRC_DIRS ${SRC_DIRS}
     INCLUDE_DIRS ${INCLUDE_DIRS} REQUIRES ${APP_REQUIRES} EMBED_TXTFILES "${EMBED_FILES}")
 
 # if(CONFIG_BT_ENABLED)
-    message(STATUS "CONFIG_BT_ENABLED is ${CONFIG_BT_ENABLED}")
-    add_definitions(-DCONFIG_BT_ENABLED) 
-    file(GLOB_RECURSE BT_SOURCES ${APP_MAIN_ROOT}/bluetooth/*.c**)
-    target_sources(${COMPONENT_LIB} PRIVATE ${BT_SOURCES})
-    target_include_directories(${COMPONENT_LIB} PRIVATE ${APP_MAIN_ROOT}/bluetooth)
-    target_link_libraries(${COMPONENT_LIB} PUBLIC idf::bt)
+message(STATUS "CONFIG_BT_ENABLED is ${CONFIG_BT_ENABLED}")
+add_definitions(-DCONFIG_BT_ENABLED)
+file(GLOB_RECURSE BT_SOURCES ${APP_MAIN_ROOT}/bluetooth/*.c**)
+target_sources(${COMPONENT_LIB} PRIVATE ${BT_SOURCES})
+target_include_directories(${COMPONENT_LIB} PRIVATE ${APP_MAIN_ROOT}/bluetooth)
+target_link_libraries(${COMPONENT_LIB} PUBLIC idf::bt)
+
 # endif()
 
 # message(STATUS "EXTRA_COMPONENT_DIRS is ${EXTRA_COMPONENT_DIRS}")
 # list(APPEND UI_INCLUDES
-#     ${APP_MAIN_ROOT}/ui
-#     ${APP_MAIN_ROOT}/ui/components
-#     ${APP_MAIN_ROOT}/ui/screens
-#     ${APP_MAIN_ROOT}/ui/fonts
-#     ${APP_MAIN_ROOT}/ui/assets
+# ${APP_MAIN_ROOT}/ui
+# ${APP_MAIN_ROOT}/ui/components
+# ${APP_MAIN_ROOT}/ui/screens
+# ${APP_MAIN_ROOT}/ui/fonts
+# ${APP_MAIN_ROOT}/ui/assets
 # )
 # list(APPEND UI_SOURCES_DIR
-#     ${APP_MAIN_ROOT}/ui
-#     ${APP_MAIN_ROOT}/ui/components
-#     ${APP_MAIN_ROOT}/ui/screens
-#     ${APP_MAIN_ROOT}/ui/assets
-#     ${APP_MAIN_ROOT}/ui/common
+# ${APP_MAIN_ROOT}/ui
+# ${APP_MAIN_ROOT}/ui/components
+# ${APP_MAIN_ROOT}/ui/screens
+# ${APP_MAIN_ROOT}/ui/assets
+# ${APP_MAIN_ROOT}/ui/common
 # )
 # file(GLOB_RECURSE UI_SOURCES ${APP_MAIN_ROOT}/ui/*.c ${APP_MAIN_ROOT}/ui/components/*.c ${APP_MAIN_ROOT}/ui/screens/*.c ${APP_MAIN_ROOT}/ui/assets/*.c ${APP_MAIN_ROOT}/ui/common/*.c)
 
@@ -60,13 +61,11 @@ idf_component_register(SRC_DIRS ${SRC_DIRS}
 # set(UI_REQUIRES ${UI_REQUIRES} lvgl esp32_eyes phancy_idf freetype)
 
 # foreach(s ${UI_REQUIRES})
-#     target_link_libraries(${COMPONENT_LIB} PUBLIC idf::${s})
+# target_link_libraries(${COMPONENT_LIB} PUBLIC idf::${s})
 # endforeach()
 
 # target_sources(${COMPONENT_LIB} PUBLIC ${UI_SOURCES})
 # target_include_directories(${COMPONENT_LIB} PUBLIC ${UI_INCLUDES})
-
-
 get_target_property(links ${COMPONENT_LIB} LINK_LIBRARIES)
 message(STATUS "app main component links is: ${links}")
 

@@ -251,13 +251,13 @@ void sensor_init(void) {
   ESP_ERROR_CHECK(spi_bus_initialize(SENSORS_SPI_HOST, &buscfg, SPI_DMA_DISABLED));
   // Lump all sensors into one device and switch between them using manual CS control
   spi_device_interface_config_t devcfg = {
-      .clock_speed_hz = 10 * 1000 * 1000,  // Clock out at 8 MHz
-      .command_bits = 0,                  // no command phase, only data
-      .address_bits = 0,                  // no address phase, only data
-      .dummy_bits = 0,                    // no dummy phase
-      .mode = 0,                          // SPI mode 0
-      .spics_io_num = -1,                 // we will use manual CS control
-      .queue_size = 2,
+      .clock_speed_hz = 1 * 1000 * 1000,  // Clock out at 8 MHz
+      .command_bits = 0,                   // no command phase, only data
+      .address_bits = 0,                   // no address phase, only data
+      .dummy_bits = 0,                     // no dummy phase
+      .mode = 0,                           // SPI mode 0
+      .spics_io_num = -1,                  // we will use manual CS control
+      .queue_size = 6,
   };
   ESP_LOGI("SENSORS INIT", "Performing device initialization");
   ESP_LOGI("MEM", "Free heap: %d bytes", esp_get_free_heap_size());
@@ -313,8 +313,6 @@ int spi_write_read_regs(spi_device_handle_t hdev, uint8_t *tx_data, size_t tx_le
 
   ESP_ERROR_CHECK(spi_device_transmit(hdev, &trans));
 
-  ESP_LOG_BUFFER_HEX_LEVEL("spi write regs", tx_data, tx_len, ESP_LOG_INFO);
-  ESP_LOG_BUFFER_HEX_LEVEL("spi read regs", rx_data, rx_len, ESP_LOG_INFO);
 
   return 0;  // Success
 }

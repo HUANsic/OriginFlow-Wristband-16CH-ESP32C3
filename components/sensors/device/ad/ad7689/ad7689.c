@@ -38,7 +38,7 @@ static int ad7689_write_reg(sensor_ad7689_t *codec, int reg, int value) {
 
 static int ad7689_read_reg(sensor_ad7689_t *codec, int reg, int *value) {
   *value = 0;
-  return codec->cfg.ctrl_if->read_reg(codec->cfg.ctrl_if, reg, 1, value, 1);
+  return codec->cfg.ctrl_if->read_reg(codec->cfg.ctrl_if, reg, 2, value, 2);
 }
 
 static int ad7689_set_reg(const sensor_if_t *h, int reg, int value) {
@@ -61,6 +61,29 @@ static int ad7689_get_reg(const sensor_if_t *h, int reg, int *value) {
     return SENSOR_WRONG_STATE;
   }
   return ad7689_read_reg(codec, reg, value);
+}
+static int ad7689_write_read_reg(const sensor_if_t *h, int reg, int value, void *out_data) {
+  sensor_ad7689_t *codec = (sensor_ad7689_t *) h;
+  if (codec == NULL) {
+    return SENSOR_INVALID_ARG;
+  }
+  uint8_t rx_data[4] = {0};
+  uint16_t len = 4;
+  uint8_t tx_buf[4] = {0};
+  tx_buf[0] = value >> 8;
+  tx_buf[1] = value & 0xff;
+  codec->cfg.ctrl_if->write_read_reg(codec->cfg.ctrl_if, tx_buf, len, rx_data, len);
+  *(int16_t *) out_data = (rx_data[0] << 8) | rx_data[1];
+  uint16_t cfg2 = 0;
+  cfg2 = ((uint16_t) rx_data[2] << 8) | rx_data[3];
+  uint16_t t = cfg2 >> 2;
+  int inx = (t >> INx) & 0b111;
+#if AD7689_DEBUG == 1
+  rb_printf_cfg2(codec->cfg.reg_cfg);
+  printf("AD7689 read actual channel:%d cfg: %04X, cfg2:%04x\r\n", inx, value, cfg2);
+  rb_printf_cfg(cfg2);
+#endif
+  return len;
 }
 
 static int ad7689_read_channel_data(const sensor_if_t *h, int channel, void *data) {
@@ -93,6 +116,7 @@ static int ad7689_read_channel_data(const sensor_if_t *h, int channel, void *dat
 #endif
   return inx;
 }
+
 static int ad7689_read_all_channel_data(const sensor_if_t *h, void *data) {
   int16_t d = 0;
   int channel = 0;
@@ -104,7 +128,6 @@ static int ad7689_read_all_channel_data(const sensor_if_t *h, void *data) {
   }
   return SENSOR_OK;
 }
-
 const sensor_if_t *ad7689_new(ad7689_cfg_t *codec_cfg) {
   if (codec_cfg == NULL || codec_cfg->ctrl_if == NULL) {
     printf("AD7689 [Error] Wrong codec config\r\n");
@@ -123,6 +146,7 @@ const sensor_if_t *ad7689_new(ad7689_cfg_t *codec_cfg) {
   codec->base.get_reg = ad7689_get_reg;
   codec->base.read_all_channel_data = ad7689_read_all_channel_data;
   codec->base.read_channel_data = ad7689_read_channel_data;
+  codec->base.write_read_reg = ad7689_write_read_reg;
   memcpy(&codec->cfg, codec_cfg, sizeof(ad7689_cfg_t));
   return &codec->base;
 }

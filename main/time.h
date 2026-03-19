@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 int64_t get_timestamp();
+int64_t get_timestamp_ms();
 #ifdef __cplusplus
 }
 #endif

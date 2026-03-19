@@ -22,7 +22,7 @@ typedef struct {
   void (*disable)(); /* SPI CS 1 */
   spi_device_handle_t spi_handle;
 } spi_ctrl_t;
-static spi_device_handle_t s_spi_handle;
+spi_device_handle_t s_spi_handle;
 
 int _spi_ctrl_open(const sensor_ctrl_if_t *ctrl, void *cfg, int cfg_size) {
   if (ctrl == NULL || cfg == NULL) {
@@ -146,9 +146,11 @@ static int _spi_ctrl_write_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_
 static int _spi_ctrl_write_read_reg(const sensor_ctrl_if_t *ctrl, void *tx_data, int tx_len, void *rx_data, int rx_len) {
   spi_ctrl_t *spi_ctrl = (spi_ctrl_t *) ctrl;
   if (ctrl == NULL || tx_data == NULL || rx_data == NULL || (tx_len != rx_len)) {
+    ESP_LOGE(TAG, "%s, Invalid argument", __func__);
     return SENSOR_INVALID_ARG;
   }
   if (spi_ctrl->is_open == false) {
+    ESP_LOGE(TAG, "%s, SPI not open", __func__);
     return SENSOR_WRONG_STATE;
   }
   _spi_ctrl_enable(spi_ctrl);
@@ -159,11 +161,11 @@ static int _spi_ctrl_write_read_reg(const sensor_ctrl_if_t *ctrl, void *tx_data,
   trans.length = (8 * tx_len);
   trans.rx_buffer = rx_data;
   trans.rxlength = (8 * rx_len);
-
   esp_err_t ret = spi_device_transmit(spi_ctrl->spi_handle, &trans);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "%s: Fail to write to dev %s", __func__, esp_err_to_name(ret));
   }
+
   _spi_ctrl_disable(spi_ctrl);
   return ret == ESP_OK ? SENSOR_OK : SENSOR_DRV_ERR;
 }

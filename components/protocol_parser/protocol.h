@@ -16,6 +16,8 @@
 
 #define PROTOCODEC_USE_MSGID       1
 
+#define PROTOCODEC_USE_TIMESTAMP   1
+
 #define PROTOCODEC_USE_DEVICE_TYPE 0
 
 #define PROTOCOL_CRC_ENDIANNESS    PROTOCOL_BIG_ENDIAN
@@ -31,6 +33,12 @@
 #define DT_MSGID_LENGTH 4
 #else
 #define DT_MSGID_LENGTH 0
+#endif
+
+#ifdef PROTOCODEC_USE_TIMESTAMP
+#define DT_TIMESTAMP_LENGTH 8
+#else
+#define DT_TIMESTAMP_LENGTH 0
 #endif
 
 #ifdef PROTOCODEC_USE_WORD_LEN
@@ -49,8 +57,8 @@
 #define DT_FIXED_LEN             (6 + DT_LEN_LENGTH + DT_FRAMEHEADER_LENGTH + DT_MSGID_LENGTH + DT_PROTOCOL_VERSION_LENGTH)
 #define DT_FIXED_WITHOUT_CRC_LEN (4 + DT_LEN_LENGTH + DT_FRAMEHEADER_LENGTH + DT_MSGID_LENGTH + DT_PROTOCOL_VERSION_LENGTH)
 #else
-#define DT_FIXED_LEN             (4 + DT_LEN_LENGTH + DT_FRAMEHEADER_LENGTH + DT_MSGID_LENGTH + DT_PROTOCOL_VERSION_LENGTH)
-#define DT_FIXED_WITHOUT_CRC_LEN (2 + DT_LEN_LENGTH + DT_FRAMEHEADER_LENGTH + DT_MSGID_LENGTH + DT_PROTOCOL_VERSION_LENGTH)
+#define DT_FIXED_LEN             (4 + DT_LEN_LENGTH + DT_FRAMEHEADER_LENGTH + DT_MSGID_LENGTH + DT_PROTOCOL_VERSION_LENGTH + DT_TIMESTAMP_LENGTH)
+#define DT_FIXED_WITHOUT_CRC_LEN (2 + DT_LEN_LENGTH + DT_FRAMEHEADER_LENGTH + DT_MSGID_LENGTH + DT_PROTOCOL_VERSION_LENGTH + DT_TIMESTAMP_LENGTH)
 #endif
 
 #if !defined(USE_ESP_LOG) && !defined(USE_STD_PRINTF) && !defined(USE_SEGGER_RTT_LOG)
@@ -116,6 +124,7 @@ typedef enum {
   dt_cmd_disconnect = 0xA009,              /* disconnect device. uplink/downlink */
   dt_cmd_wifi = 0xA00A,                    /* device ble command. uplink/downlink */
   dt_cmd_device_connect_status = 0xA00B,   /* device ble、wifi、app连接状态. uplink */
+  dt_cmd_log = 0xFFFD,                    /* error. uplink */
   dt_cmd_info = 0xFFFE,                    /* error. uplink */
   dt_cmd_error = 0xFFFF,                   /* error. uplink */
 } data_transmission_command_t;
@@ -239,12 +248,15 @@ typedef enum {
 #pragma pack(1)
 typedef struct {
   uint8_t FrameHeader[DT_FRAMEHEADER_LENGTH]; /* frame header is fixed */
+  uint16_t Length;                            /* 消息帧不算data为14 */
 #if PROTOCODEC_USE_VERSION == 1
-  uint8_t Protocol[4]; /* protocol version */
+  uint8_t Protocol[DT_PROTOCOL_VERSION_LENGTH]; /* protocol version */
 #endif
-  uint16_t Length; /* 消息帧不算data为14 */
 #if PROTOCODEC_USE_MSGID == 1
   uint32_t MsgID;
+#endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  uint8_t Timestamp[DT_TIMESTAMP_LENGTH]; /* protocol version */
 #endif
 #if PROTOCODEC_USE_DEVICE_TYPE == 1
   uint8_t SrcDeviceType;
@@ -375,6 +387,9 @@ uint8_t *AllData(data_transmission_t *dt);
 uint8_t *Data(data_transmission_t *dt);
 void Printf_data(data_transmission_t *dt);
 void Printf_format(data_transmission_t *dt);
+typedef int64_t (*protocol_get_timestamp)();
+
+void set_protocol_get_timestamp(protocol_get_timestamp get_timestamp);
 #ifdef __cplusplus
 }
 #endif

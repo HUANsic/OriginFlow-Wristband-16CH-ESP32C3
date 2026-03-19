@@ -20,6 +20,22 @@
 #define I2S_func(args) args = #args
 
 static uint32_t msg_id = 0;
+static protocol_get_timestamp s_get_timestamp = NULL;
+#if PROTOCOL_DATA_ENDIANNESS == PROTOCOL_BIG_ENDIAN
+static bool is_big_endian = true;
+#else
+static bool is_big_endian = false;
+#endif
+void set_protocol_get_timestamp(protocol_get_timestamp get_timestamp) {
+  s_get_timestamp = get_timestamp;
+}
+
+static int64_t get_timestamp() {
+  if (s_get_timestamp) {
+    return s_get_timestamp();
+  }
+  return 0;
+}
 static void intToByte(int64_t v, uint8_t *out, int byteLen, bool isBigEndian) {
   int i = 0;
   if (isBigEndian) {
@@ -194,9 +210,16 @@ std::string Codec::get_format_data() {
     str += std::format("{:02X}", dt.FrameHeader[i]);
     str += " ";
   }
-#if PROTOCOL_USE_VERSION == 1
+#if PROTOCODEC_USE_VERSION == 1
   str += "}.\r\nprotocol version is {";
   str += std::string((char *) dt.Protocol, sizeof(dt.Protocol));
+#endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  str += "}.\r\ntimestamp is {";
+  int64_t timestamp = ((int64_t) dt.Timestamp[0] << 42) | ((int64_t) dt.Timestamp[1] << 36) | ((int64_t) dt.Timestamp[2] << 30) |
+                      ((int64_t) dt.Timestamp[3] << 24) | ((int64_t) dt.Timestamp[4] << 18) | ((int64_t) dt.Timestamp[5] << 12) |
+                      ((int64_t) dt.Timestamp[6] << 6) | dt.Timestamp[7];
+  str += std::to_string(timestamp);
 #endif
   str += "}.\r\npacket size is {";
   str += std::to_string(dt.Length);
@@ -231,27 +254,29 @@ std::string Codec::get_format_data() {
 }
 
 dt_err_t Codec::Generate_without_data(data_transmission_command_t command, uint8_t *out_data) {
-  // byte_copy(dt.FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt.FrameHeader), false);
+  // byte_copy(dt.FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt.FrameHeader), is_big_endian);
   if (out_data == nullptr) {
     return dt_malloc_err;
   }
-#if PROTOCODEC_USE_VERSION == 1
-  byte_copy(dt.Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt.Protocol), false);
-#endif
   dt.Buffer = out_data;
-
   dt.Length = DT_FIXED_LEN;
+
+#if PROTOCODEC_USE_VERSION == 1
+  byte_copy(dt.Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt.Protocol), is_big_endian);
+#endif
+
 #ifdef PROTOCODEC_USE_MSGID
   dt.MsgID = msg_id++;
 #endif
   dt.Cmd = command;
   memcpy(dt.Buffer, (uint8_t *) &dt, dt.Length);
 #ifdef PROTOCODEC_USE_MSGID
-#if PROTOCOL_DATA_ENDIANNESS == PROTOCOL_BIG_ENDIAN
-  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, true);
-#else
-  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, false);
+  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, is_big_endian);
 #endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  int64_t timestamp = get_timestamp();
+  protocol_log("[%s] timestamp is %" PRId64 "\r\n", TAG, timestamp);
+  byte_copy(dt.Timestamp, (uint8_t *) &timestamp, sizeof(dt.Timestamp), is_big_endian);
 #endif
   /* crc16 is 2 byte */
   dt.Crc16 = CRC16(dt.Buffer, dt.Length - 2);
@@ -271,9 +296,9 @@ dt_err_t Codec::Generate_packet(data_transmission_command_t command, uint8_t *da
     protocol_log("[%s]%s generate packet failure. data or len is not match\r\n", TAG, __func__);
     return dt_err;
   }
-  // byte_copy(dt.FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt.FrameHeader), false);
+  // byte_copy(dt.FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt.FrameHeader), is_big_endian);
 #if PROTOCODEC_USE_VERSION == 1
-  byte_copy(dt.Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt.Protocol), false);
+  byte_copy(dt.Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt.Protocol), is_big_endian);
 #endif
   dt.Length = DT_FIXED_LEN + len;
 
@@ -286,14 +311,14 @@ dt_err_t Codec::Generate_packet(data_transmission_command_t command, uint8_t *da
 #ifdef PROTOCODEC_USE_MSGID
   dt.MsgID = msg_id++;
 #endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  int64_t timestamp = get_timestamp();
+  byte_copy(dt.Timestamp, (uint8_t *) &timestamp, sizeof(dt.Timestamp), is_big_endian);
+#endif
   memcpy(dt.Buffer, (uint8_t *) &dt, DT_FIXED_WITHOUT_CRC_LEN);
   memcpy(dt.Buffer + DT_FIXED_WITHOUT_CRC_LEN, data, len);
 #ifdef PROTOCODEC_USE_MSGID
-#if PROTOCOL_DATA_ENDIANNESS == PROTOCOL_BIG_ENDIAN
-  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, true);
-#else
-  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, false);
-#endif
+  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, is_big_endian);
 #endif
   /* crc16 is 2 byte */
   dt.Crc16 = CRC16(dt.Buffer, dt.Length - 2);
@@ -314,9 +339,9 @@ dt_err_t Codec::Generate_packet_with_custom_subHeader(data_transmission_command_
     protocol_log("[%s]%s generate packet failure. data or len is not match\r\n", TAG, __func__);
     return dt_err;
   }
-  // byte_copy(dt.FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt.FrameHeader), false);
+  // byte_copy(dt.FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt.FrameHeader), is_big_endian);
 #if PROTOCODEC_USE_VERSION == 1
-  byte_copy(dt.Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt.Protocol), false);
+  byte_copy(dt.Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt.Protocol), is_big_endian);
 #endif
   dt.Length = DT_FIXED_LEN + len + subLen;
 #ifdef PROTOCODEC_USE_MSGID
@@ -329,12 +354,12 @@ dt_err_t Codec::Generate_packet_with_custom_subHeader(data_transmission_command_
     return dt_malloc_err;
   }
   memcpy(dt.Buffer, (uint8_t *) &dt, DT_FIXED_WITHOUT_CRC_LEN);
-#ifdef PROTOCODEC_USE_MSGID
-#if PROTOCOL_DATA_ENDIANNESS == PROTOCOL_BIG_ENDIAN
-  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, true);
-#else
-  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, false);
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  int64_t timestamp = get_timestamp();
+  byte_copy(dt.Timestamp, (uint8_t *) &timestamp, sizeof(dt.Timestamp), is_big_endian);
 #endif
+#ifdef PROTOCODEC_USE_MSGID
+  intToByte(dt.MsgID, dt.Buffer + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH + DT_PROTOCOL_VERSION_LENGTH, 4, is_big_endian);
 #endif
 
   memcpy(dt.Buffer + DT_FIXED_WITHOUT_CRC_LEN, subData, subLen);
@@ -372,30 +397,36 @@ dt_err_t Codec::Parse_from_data(void *data, uint32_t len, uint8_t *out_data) {
   }
 #if PROTOCODEC_USE_VERSION == 1
   /* 匹配协议版本 */
-  if (strncmp(DT_PROTOCOL_VERSION, (char *) msg + 2, 4) == 0) {
+  if (strncmp(DT_PROTOCOL_VERSION, (char *) msg + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH, 4) == 0) {
   } else {
+    protocol_log("[%s]%s protocol version is not match,%.*s,%.*s\r\n", TAG, __func__, 4, DT_PROTOCOL_VERSION, 4,
+                 (char *) msg + DT_FRAMEHEADER_LENGTH + DT_LEN_LENGTH);
     return dt_err_invalid_protocol;
   }
 #endif
-  byte_copy(dt.FrameHeader, msg, sizeof(dt.FrameHeader), false);
+  byte_copy(dt.FrameHeader, msg, sizeof(dt.FrameHeader), is_big_endian);
   msg += sizeof(dt.FrameHeader);
-#ifdef PROTOCOL_USE_VERSION
-  byte_copy(dt.Protocol, msg, 4, false);
+  dt.Length = byteToInt(msg, DT_LEN_LENGTH, is_big_endian);
+  msg += sizeof(dt.Length);
+#if PROTOCODEC_USE_VERSION == 1
+  byte_copy(dt.Protocol, msg, DT_PROTOCOL_VERSION_LENGTH, is_big_endian);
   msg += sizeof(dt.Protocol);
 #endif
-  dt.Length = byteToInt(msg, 2, false);
-  msg += sizeof(dt.Length);
 #ifdef PROTOCODEC_USE_MSGID
-  dt.MsgID = byteToInt(msg, 4, false);
+  dt.MsgID = byteToInt(msg, DT_MSGID_LENGTH, is_big_endian);
   msg += sizeof(dt.MsgID);
 #endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  byte_copy(dt.Timestamp, msg, DT_TIMESTAMP_LENGTH, is_big_endian);
+  msg += DT_TIMESTAMP_LENGTH;
+#endif
 #if PROTOCODEC_USE_DEVICE_TYPE == 1
-  dt.SrcDeviceType = byteToInt(msg, 2, false);
+  dt.SrcDeviceType = byteToInt(msg, 2, is_big_endian);
   msg += sizeof(dt.SrcDeviceType);
-  dt.DestDeviceType = byteToInt(msg, 2, false);
+  dt.DestDeviceType = byteToInt(msg, 2, is_big_endian);
   msg += sizeof(dt.DestDeviceType);
 #endif
-  dt.Cmd = byteToInt(msg, 2, false);
+  dt.Cmd = byteToInt(msg, 2, is_big_endian);
   dt.Buffer = out_data;
   if (dt.Buffer == nullptr) {
     protocol_log("[%s]%s malloc is failure\r\n", TAG, __func__);
@@ -455,13 +486,17 @@ void protocol_log_data(data_transmission_t *dt) {
 }
 
 dt_err_t Generate_without_data(data_transmission_t *dt, data_transmission_command_t command, uint8_t *out_data) {
-  // byte_copy(dt->FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt->FrameHeader), false);
+  // byte_copy(dt->FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt->FrameHeader), is_big_endian);
 #if PROTOCODEC_USE_VERSION == 1
-  byte_copy(dt->Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt->Protocol), false);
+  byte_copy(dt->Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt->Protocol), is_big_endian);
 #endif
   dt->Length = DT_FIXED_LEN;
 #ifdef PROTOCODEC_USE_MSGID
   dt->MsgID = msg_id++;
+#endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  int64_t timestamp = get_timestamp();
+  byte_copy(dt->Timestamp, (uint8_t *) &timestamp, sizeof(dt->Timestamp), is_big_endian);
 #endif
   dt->Cmd = command;
   /* crc16 is 2 byte */
@@ -484,9 +519,9 @@ dt_err_t Generate_packet(data_transmission_t *dt, data_transmission_command_t co
     protocol_log("[%s]%s generate packet failure. data or len is not match\r\n", TAG, __func__);
     return dt_err;
   }
-  // byte_copy(dt->FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt->FrameHeader), false);
+  // byte_copy(dt->FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt->FrameHeader), is_big_endian);
 #if PROTOCODEC_USE_VERSION == 1
-  byte_copy(dt->Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt->Protocol), false);
+  byte_copy(dt->Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt->Protocol), is_big_endian);
 #endif
   dt->Length = DT_FIXED_LEN + len;
 #ifdef PROTOCODEC_USE_MSGID
@@ -519,13 +554,17 @@ dt_err_t Generate_packet_with_custom_subHeader(data_transmission_t *dt, data_tra
     protocol_log("[%s]%s generate packet failure. data or len is not match\r\n", TAG, __func__);
     return dt_err;
   }
-  // byte_copy(dt->FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt->FrameHeader), false);
+  // byte_copy(dt->FrameHeader, (uint8_t *) DT_FRAMEHEADER, sizeof(dt->FrameHeader), is_big_endian);
 #if PROTOCODEC_USE_VERSION == 1
-  byte_copy(dt->Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt->Protocol), false);
+  byte_copy(dt->Protocol, (uint8_t *) DT_PROTOCOL_VERSION, sizeof(dt->Protocol), is_big_endian);
 #endif
   dt->Length = DT_FIXED_LEN + len + subLen;
 #ifdef PROTOCODEC_USE_MSGID
   dt->MsgID = msg_id++;
+#endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  int64_t timestamp = get_timestamp();
+  byte_copy(dt->Timestamp, (uint8_t *) &timestamp, sizeof(dt->Timestamp), is_big_endian);
 #endif
   dt->Cmd = command;
   dt->Buffer = out_data;
@@ -567,25 +606,29 @@ dt_err_t Parse_from_data(data_transmission_t *dt, void *data, uint32_t len, uint
     protocol_log("[%s]%s crc is error %04X,%04X\r\n", TAG, __func__, crc_src, crc_dest);
     return dt_err_crc;
   }
-  byte_copy(dt->FrameHeader, msg, sizeof(dt->FrameHeader), false);
+  byte_copy(dt->FrameHeader, msg, sizeof(dt->FrameHeader), is_big_endian);
   msg += sizeof(dt->FrameHeader);
+  dt->Length = byteToInt(msg, sizeof(dt->Length), is_big_endian);
+  msg += sizeof(dt->Length);
 #if PROTOCODEC_USE_VERSION == 1
-  byte_copy(dt->Protocol, msg, sizeof(dt->Protocol), false);
+  byte_copy(dt->Protocol, msg, sizeof(dt->Protocol), is_big_endian);
   msg += sizeof(dt->Protocol);
 #endif
-  dt->Length = byteToInt(msg, sizeof(dt->Length), false);
-  msg += sizeof(dt->Length);
 #ifdef PROTOCODEC_USE_MSGID
-  dt->MsgID = byteToInt(msg, sizeof(dt->MsgID), false);
+  dt->MsgID = byteToInt(msg, sizeof(dt->MsgID), is_big_endian);
   msg += sizeof(dt->MsgID);
 #endif
+#if PROTOCODEC_USE_TIMESTAMP == 1
+  byte_copy(dt->Timestamp, msg, sizeof(dt->Timestamp), is_big_endian);
+  msg += sizeof(dt->Timestamp);
+#endif
 #if PROTOCODEC_USE_DEVICE_TYPE == 1
-  dt->SrcDeviceType = byteToInt(msg, sizeof(dt->SrcDeviceType), false);
+  dt->SrcDeviceType = byteToInt(msg, sizeof(dt->SrcDeviceType), is_big_endian);
   msg += sizeof(dt->SrcDeviceType);
-  dt->DestDeviceType = byteToInt(msg, sizeof(dt->DestDeviceType), false);
+  dt->DestDeviceType = byteToInt(msg, sizeof(dt->DestDeviceType), is_big_endian);
   msg += sizeof(dt->DestDeviceType);
 #endif
-  dt->Cmd = byteToInt(msg, sizeof(dt->Cmd), false);
+  dt->Cmd = byteToInt(msg, sizeof(dt->Cmd), is_big_endian);
   dt->Buffer = out_data;
   if (dt->Buffer == nullptr) {
     protocol_log("[%s]%s malloc is failure\r\n", TAG, __func__);
