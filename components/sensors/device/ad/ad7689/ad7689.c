@@ -116,15 +116,35 @@ static int ad7689_read_channel_data(const sensor_if_t *h, int channel, void *dat
 #endif
   return inx;
 }
-
 static int ad7689_read_all_channel_data(const sensor_if_t *h, void *data) {
-  int16_t d = 0;
-  int channel = 0;
+  sensor_ad7689_t *codec = (sensor_ad7689_t *) h;
+  if (codec == NULL) {
+    printf("AD7689 [Error] Wrong codec config\r\n");
+    return -1;
+  }
+
+  codec->cfg.reg_cfg.inx = 7;
+  codec->cfg.reg_cfg.seq = 0b10;
+  codec->cfg.reg_cfg.cfg = 1;
+  codec->cfg.reg_cfg.rb = 1;
+  uint8_t tx_buf[2];
+  uint8_t rx_buf[2] = {0};
+  uint16_t ad7689_config2 = codec->cfg.reg_cfg.u16 << 2;
+
+  tx_buf[0] = ad7689_config2 >> 8;
+  tx_buf[1] = ad7689_config2 & 0xff;
+  codec->cfg.ctrl_if->enable(codec->cfg.ctrl_if);
+  codec->cfg.ctrl_if->write_read_reg(codec->cfg.ctrl_if, tx_buf, 2, rx_buf, 2);
+
+  tx_buf[0] = 0;
+  tx_buf[1] = 0;
+  codec->cfg.ctrl_if->enable(codec->cfg.ctrl_if);
+  codec->cfg.ctrl_if->write_read_reg(codec->cfg.ctrl_if, tx_buf, 2, rx_buf, 2);
+  uint16_t *ptr = (uint16_t *) data;
   for (int i = 0; i < 8; i++) {
-    channel = ad7689_read_channel_data(h, i, &d);
-    if (channel >= 0 && channel < 8) {
-      *(int16_t *) (data + i) = d;
-    }
+    codec->cfg.ctrl_if->enable(codec->cfg.ctrl_if);
+    codec->cfg.ctrl_if->write_read_reg(codec->cfg.ctrl_if, tx_buf, 2, rx_buf, 2);
+    ptr[i] = (rx_buf[0] << 8) | rx_buf[1];
   }
   return SENSOR_OK;
 }

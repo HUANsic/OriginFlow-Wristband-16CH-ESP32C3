@@ -109,7 +109,8 @@ typedef enum {
   dt_cmd_CAMERA_DOWN = 0x04,               /* device camera data command. up/downlink */
   dt_cmd_VIBRATE_DATA = 0x05,              /* device vibration feedback data command. up/downlink */
   dt_cmd_BATTERY = 0x06,                   /* device battery status command. up/downlink */
-  dt_cmd_end = 0x07F,                      /* device end marker command. up/downlink */
+  dt_cmd_data_start = 0x07E,               /* device start send data command. up/downlink */
+  dt_cmd_data_end = 0x07F,                 /* device end send data command. up/downlink */
   dt_cmd_test = 0xFB,                      /* test result. uplink/downlink */
   dt_cmd_reset = 0xFD,                     /* device fatory reset command. downlink */
   dt_cmd_shutdown = 0xFE,                  /* device shutdown command. downlink */
@@ -124,10 +125,18 @@ typedef enum {
   dt_cmd_disconnect = 0xA009,              /* disconnect device. uplink/downlink */
   dt_cmd_wifi = 0xA00A,                    /* device ble command. uplink/downlink */
   dt_cmd_device_connect_status = 0xA00B,   /* device ble、wifi、app连接状态. uplink */
-  dt_cmd_log = 0xFFFD,                    /* error. uplink */
+  dt_cmd_log = 0xFFFD,                     /* error. uplink */
   dt_cmd_info = 0xFFFE,                    /* error. uplink */
   dt_cmd_error = 0xFFFF,                   /* error. uplink */
 } data_transmission_command_t;
+
+typedef enum {
+  dt_imu_data_9_aix_float = 0,
+  dt_imu_data_9_aix_int16,
+} dt_imu_data_command_t;
+typedef enum {
+  dt_imu_ctrl_data_type = 0x00,  // 发送9轴数据类型，0x00:float(转换后的) 0x01:int16（RAW）
+} dt_imu_ctrl_command_t;
 
 typedef enum {
   dt_error_none = 0x0,

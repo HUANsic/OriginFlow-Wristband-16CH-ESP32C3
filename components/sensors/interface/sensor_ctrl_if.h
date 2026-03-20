@@ -18,7 +18,9 @@ struct sensor_ctrl_if_t {
   int (*read_reg)(const sensor_ctrl_if_t *ctrl, int reg, int reg_len, void *data, int data_len);  /*!< Read data from sensor register */
   int (*write_reg)(const sensor_ctrl_if_t *ctrl, int reg, int reg_len, void *data, int data_len); /*!< Write data to sensor register */
   int (*write_read_reg)(const sensor_ctrl_if_t *ctrl, void *tx_data, int tx_len, void *rx_data,
-                        int rx_len);          /*!< Write data and read data to sensor register. tx_len = rx_len */
+                        int rx_len); /*!< Write data and read data to sensor register. tx_len = rx_len */
+  void (*enable)(const sensor_ctrl_if_t *ctrl);
+  void (*disable)(const sensor_ctrl_if_t *ctrl);
   int (*close)(const sensor_ctrl_if_t *ctrl); /*!< Close sensor control interface */
 };
 

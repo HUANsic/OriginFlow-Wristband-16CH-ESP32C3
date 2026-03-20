@@ -86,6 +86,9 @@ class PacketGenerate {
   dt_err_t packet_generate_stm32_hardFault(uint8_t *data, uint32_t len);
 
   dt_err_t packet_generate_imu(float gyro_x, float gyro_y, float gyro_z, float accel_x, float accel_y, float accel_z, float mag_x, float mag_y, float mag_z);
+  dt_err_t packet_generate_imu(int16_t raw_gyro_x, int16_t raw_gyro_y, int16_t raw_gyro_z, int16_t raw_accel_x, int16_t raw_accel_y, int16_t raw_accel_z,
+                               int16_t raw_mag_x, int16_t raw_mag_y, int16_t raw_mag_z);
+  dt_err_t packet_generate_semg(uint8_t *data, size_t len);
 };
 
 #endif

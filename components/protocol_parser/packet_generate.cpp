@@ -310,16 +310,38 @@ dt_err_t PacketGenerate::packet_generate_stm32_hardFault(uint8_t *data, uint32_t
 
 dt_err_t PacketGenerate::packet_generate_imu(float gyro_x, float gyro_y, float gyro_z, float accel_x, float accel_y, float accel_z, float mag_x, float mag_y,
                                              float mag_z) {
-  uint32_t packet_len = 36;
-  uint8_t packet_data[36] = {0};
-  memcpy(packet_data, &gyro_x, 4);
-  memcpy(packet_data + 4, &gyro_y, 4);
-  memcpy(packet_data + 8, &gyro_z, 4);
-  memcpy(packet_data + 12, &accel_x, 4);
-  memcpy(packet_data + 16, &accel_y, 4);
-  memcpy(packet_data + 20, &accel_z, 4);
-  memcpy(packet_data + 24, &mag_x, 4);
-  memcpy(packet_data + 28, &mag_y, 4);
-  memcpy(packet_data + 32, &mag_z, 4);
+  // float 9 aix + 1
+  uint32_t packet_len = 9 * 4 + 1;
+  uint8_t packet_data[37] = {0};
+  packet_data[0] = dt_imu_data_9_aix_float;
+  memcpy(packet_data + 1, &gyro_x, 4);
+  memcpy(packet_data + 5, &gyro_y, 4);
+  memcpy(packet_data + 9, &gyro_z, 4);
+  memcpy(packet_data + 13, &accel_x, 4);
+  memcpy(packet_data + 17, &accel_y, 4);
+  memcpy(packet_data + 21, &accel_z, 4);
+  memcpy(packet_data + 25, &mag_x, 4);
+  memcpy(packet_data + 29, &mag_y, 4);
+  memcpy(packet_data + 33, &mag_z, 4);
   return codec.Generate_packet(dt_cmd_imu, packet_data, packet_len, codec.send_litter_buffer);
+}
+dt_err_t PacketGenerate::packet_generate_imu(int16_t raw_gyro_x, int16_t raw_gyro_y, int16_t raw_gyro_z, int16_t raw_accel_x, int16_t raw_accel_y,
+                                             int16_t raw_accel_z, int16_t raw_mag_x, int16_t raw_mag_y, int16_t raw_mag_z) {
+  uint32_t packet_len = 9 * 2 + 1;
+  uint8_t packet_data[9 * 2 + 1] = {0};
+  packet_data[0] = dt_imu_data_9_aix_int16;
+  memcpy(packet_data + 1, &raw_gyro_x, 2);
+  memcpy(packet_data + 3, &raw_gyro_y, 2);
+  memcpy(packet_data + 5, &raw_gyro_z, 2);
+  memcpy(packet_data + 7, &raw_accel_x, 2);
+  memcpy(packet_data + 9, &raw_accel_y, 2);
+  memcpy(packet_data + 11, &raw_accel_z, 2);
+  memcpy(packet_data + 13, &raw_mag_x, 2);
+  memcpy(packet_data + 15, &raw_mag_y, 2);
+  memcpy(packet_data + 17, &raw_mag_z, 2);
+  return codec.Generate_packet(dt_cmd_imu, packet_data, packet_len, codec.send_litter_buffer);
+}
+
+dt_err_t PacketGenerate::packet_generate_semg(uint8_t *data, size_t len) {
+  return codec.Generate_packet(dt_cmd_semg, data, len, codec.send_litter_buffer);
 }

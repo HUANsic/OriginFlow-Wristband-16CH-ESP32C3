@@ -27,6 +27,7 @@
 #include "time.h"
 
 static volatile bool s_send_data = false;
+static volatile bool s_send_imu_data_raw = true;
 static const char *TAG = "app_main";
 static void ble_data_cb(uint8_t *data, uint32_t len) {
   ESP_LOG_BUFFER_HEX_LEVEL(TAG, data, len, ESP_LOG_INFO);
@@ -61,7 +62,7 @@ extern spi_device_handle_t _sensors_hspidevice;
 #if ENABLE_AD7689
 void ad7689_1_enable() {
   gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 1);
-  ets_delay_us(2);  // Delay for 10 microseconds before the next reading
+  ets_delay_us(3);  // Delay for 10 microseconds before the next reading
   gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 0);
 }
 
@@ -70,7 +71,7 @@ void ad7689_1_disable() {
 }
 void ad7689_2_enable() {
   gpio_set_level((gpio_num_t) ADC2_CS_GPIO_NUM, 1);
-  ets_delay_us(2);  // Delay for 10 microseconds before the next reading
+  ets_delay_us(3);  // Delay for 10 microseconds before the next reading
   gpio_set_level((gpio_num_t) ADC2_CS_GPIO_NUM, 0);
 }
 
@@ -78,8 +79,57 @@ void ad7689_2_disable() {
   gpio_set_level((gpio_num_t) ADC2_CS_GPIO_NUM, 1);
 }
 
+#define CNV_PIN 4
+uint16_t adc_results[8];
+float adc_results_float[8];
+uint16_t cfg_cmd = 0x3FC5;  // 示例：14位配置字，开启SEQ扫描
+// esp_rom_delay_us
+void ad7689_get_8_channels(spi_device_handle_t spi) {
+  spi_transaction_t t;
+  uint8_t tx_buf[2];
+  uint8_t rx_buf[2];
+
+  // 准备事务结构
+  memset(&t, 0, sizeof(t));
+  t.length = 16;
+  t.tx_buffer = tx_buf;
+  t.rx_buffer = rx_buf;
+  tx_buf[0] = (cfg_cmd >> 6) & 0xFF;  // CFG 高 8 位
+  tx_buf[1] = (cfg_cmd << 2) & 0xFF;  // CFG 低 6 位补 0
+  ESP_LOG_BUFFER_HEX_LEVEL(TAG, tx_buf, 2, ESP_LOG_INFO);
+  // gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 1);
+  // esp_rom_delay_us(3);  // 等待转换完成 (t_CONV max = 2.11us)
+  // gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 0);
+  ad7689_1_enable();
+  // 3. 执行 SPI 交换
+  spi_device_polling_transmit(spi, &t);
+
+  tx_buf[0] = 0;
+  tx_buf[1] = 0;  // 后续帧只需提供时钟
+                  // 1. 触发转换 (CNV 高电平脉冲)
+  // gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 1);
+  // esp_rom_delay_us(3);  // 等待转换完成 (t_CONV max = 2.11us)
+  // gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 0);
+  ad7689_1_enable();
+
+  // 3. 执行 SPI 交换
+  spi_device_polling_transmit(spi, &t);
+  for (int i = 0; i < 8; i++) {
+    // 1. 触发转换 (CNV 高电平脉冲)
+    // gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 1);
+    // esp_rom_delay_us(3);  // 等待转换完成 (t_CONV max = 2.11us)
+    // gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 0);
+    ad7689_1_enable();
+
+    // 3. 执行 SPI 交换
+    spi_device_polling_transmit(spi, &t);
+    adc_results[i] = (rx_buf[0] << 8) | rx_buf[1];
+    adc_results_float[i] = ((adc_results[i] - AD7689_BASE_V) / 65536.0) * 2.5 / 0.35;
+  }
+}
+extern spi_device_handle_t s_spi_handle;
 const sensor_if_t *init_ad7689_1() {
-  static sensor_spi_cfg_t sensor_spi_cfg = {SENSORS_SPI_HOST, 1000000, ad7689_1_enable, ad7689_1_disable};
+  static sensor_spi_cfg_t sensor_spi_cfg = {SENSORS_SPI_HOST, 20000000, ad7689_1_enable, ad7689_1_disable};
   static sensor_ctrl_if_t *out_ctrl_if = sensor_new_spi_ctrl(&sensor_spi_cfg);
   ad7689_cfg_t ad7689_cfg;
   memset(&ad7689_cfg, 0, sizeof(ad7689_cfg_t));
@@ -94,12 +144,13 @@ const sensor_if_t *init_ad7689_1() {
   ad7689_cfg.reg_cfg.rb = 0;
 
   const sensor_if_t *_ad7689_if = ad7689_new(&ad7689_cfg);
-  uint16_t dummy;
-  _ad7689_if->read_channel_data(_ad7689_if, 7, &dummy);
-  vTaskDelay(1 / portTICK_PERIOD_MS);
-  _ad7689_if->write_read_reg(_ad7689_if, 0, 0, &dummy);
-  gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 1);
+  // uint16_t dummy;
+  // _ad7689_if->read_channel_data(_ad7689_if, 7, &dummy);
+  // vTaskDelay(1 / portTICK_PERIOD_MS);
+  // _ad7689_if->write_read_reg(_ad7689_if, 0, 0, &dummy);
+  // gpio_set_level((gpio_num_t) ADC1_CS_GPIO_NUM, 1);
   ESP_LOGI(TAG, "init ad7689 1 is success");
+
   return _ad7689_if;
 }
 
@@ -322,8 +373,8 @@ void sensor_read_task(void *param) {
   lsm6ds3tr_c_func_en_set(&dev_ctx, PROPERTY_ENABLE);
   lsm6ds3tr_c_sh_master_set(&dev_ctx, PROPERTY_ENABLE);
   /* Set XL and Gyro Output Data Rate */
-  lsm6ds3tr_c_xl_data_rate_set(&dev_ctx, LSM6DS3TR_C_XL_ODR_52Hz);
-  lsm6ds3tr_c_gy_data_rate_set(&dev_ctx, LSM6DS3TR_C_GY_ODR_26Hz);
+  lsm6ds3tr_c_xl_data_rate_set(&dev_ctx, LSM6DS3TR_C_XL_ODR_6k66Hz);
+  lsm6ds3tr_c_gy_data_rate_set(&dev_ctx, LSM6DS3TR_C_GY_ODR_6k66Hz);
 
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
@@ -339,24 +390,26 @@ void sensor_read_task(void *param) {
 
   uint8_t emb_sh[18];
   uint8_t imu_data[36 + 7];
-  PacketGenerate _generate;
-  int16_t data_raw_magnetic[3];
+  int16_t data_raw_magnetic[3] = {0};
   float magnetic_mG[3] = {0};
   int16_t data_raw_temperature = 0;
   float temperature_degC = 0, temp_lsm6ds3tr = 0;
   uint8_t drdy;
 #endif
+  PacketGenerate _generate;
   sensor_if_t *ad7689[2];
   ad7689[0] = (sensor_if_t *) init_ad7689_1();
-  ad7689[1] = (sensor_if_t *) init_ad7689_2();
+  // ad7689[1] = (sensor_if_t *) init_ad7689_2();
   uint32_t read_count = 0;
 #if WORK_MODE == WORK_MODE_DEBUG
-  int64_t start_time = get_timestamp();
-  int64_t last_time = get_timestamp();
+  float heading = 0;
+  int64_t start_time = get_timestamp_us();
+  int64_t last_time = get_timestamp_us();
 #endif
+  uint8_t semg_data[48] = {0};
   while (1) {
 #if WORK_MODE == WORK_MODE_DEBUG
-    start_time = get_timestamp();
+    start_time = get_timestamp_us();
 #endif
 #if ENABLE_IMU == 1
     if (++read_count % 5 == 0) {
@@ -368,12 +421,12 @@ void sensor_read_task(void *param) {
         // data_raw_magnetic[1] = emb_sh[2] | (emb_sh[3] << 8);
         // data_raw_magnetic[2] = emb_sh[4] | (emb_sh[5] << 8);
         // ESP_LOG_BUFFER_HEX_LEVEL(TAG, emb_sh, 6, ESP_LOG_INFO);
-        lis3mdl_magnetic_raw_get(&mag_ctx, (int16_t *) data_raw_magnetic);
-        magnetic_mG[0] = 1000 * lis3mdl_from_fs16_to_gauss(data_raw_magnetic[0]);
-        magnetic_mG[1] = 1000 * lis3mdl_from_fs16_to_gauss(data_raw_magnetic[1]);
-        magnetic_mG[2] = 1000 * lis3mdl_from_fs16_to_gauss(data_raw_magnetic[2]);
+        // lis3mdl_magnetic_raw_get(&mag_ctx, (int16_t *) data_raw_magnetic);
+        // magnetic_mG[0] = 1000 * lis3mdl_from_fs16_to_gauss(data_raw_magnetic[0]);
+        // magnetic_mG[1] = 1000 * lis3mdl_from_fs16_to_gauss(data_raw_magnetic[1]);
+        // magnetic_mG[2] = 1000 * lis3mdl_from_fs16_to_gauss(data_raw_magnetic[2]);
 #if WORK_MODE == WORK_MODE_DEBUG
-        last_time = get_timestamp();
+        last_time = get_timestamp_us();
         ESP_LOGI(TAG, "3 last_time - start_time: %" PRId64 "us", last_time - start_time);
 #endif
       }
@@ -382,29 +435,29 @@ void sensor_read_task(void *param) {
       if (drdy) {
         lsm6ds3tr_c_angular_rate_raw_get(NULL, outgyro);
       }
-      lsm6ds3tr_c_temp_flag_data_ready_get(NULL, &drdy);
-#if WORK_MODE == WORK_MODE_DEBUG
-      last_time = get_timestamp();
-      ESP_LOGI(TAG, "6 last_time - start_time: %" PRId64 "us", last_time - start_time);
-#endif
-      if (drdy) {
-        data_raw_temperature = 0;
-        lsm6ds3tr_c_temperature_raw_get(NULL, &data_raw_temperature);
-        temp_lsm6ds3tr = lsm6ds3tr_c_from_lsb_to_celsius(data_raw_temperature);
-#if WORK_MODE == WORK_MODE_DEBUG
-        last_time = get_timestamp();
-        ESP_LOGI(TAG, "7 last_time - start_time: %" PRId64 "us", last_time - start_time);
-#endif
-      }
-      data_raw_temperature = 0;
-      lis3mdl_temperature_raw_get(&mag_ctx, &data_raw_temperature);
-      temperature_degC = lis3mdl_from_lsb_to_celsius(data_raw_temperature);
+//       lsm6ds3tr_c_temp_flag_data_ready_get(NULL, &drdy);
+// #if WORK_MODE == WORK_MODE_DEBUG
+//       last_time = get_timestamp_us();
+//       ESP_LOGI(TAG, "6 last_time - start_time: %" PRId64 "us", last_time - start_time);
+// #endif
+//       if (drdy) {
+//         data_raw_temperature = 0;
+//         lsm6ds3tr_c_temperature_raw_get(NULL, &data_raw_temperature);
+//         temp_lsm6ds3tr = lsm6ds3tr_c_from_lsb_to_celsius(data_raw_temperature);
+// #if WORK_MODE == WORK_MODE_DEBUG
+//         last_time = get_timestamp_us();
+//         ESP_LOGI(TAG, "7 last_time - start_time: %" PRId64 "us", last_time - start_time);
+// #endif
+//       }
+//       data_raw_temperature = 0;
+//       lis3mdl_temperature_raw_get(&mag_ctx, &data_raw_temperature);
+//       temperature_degC = lis3mdl_from_lsb_to_celsius(data_raw_temperature);
 #if WORK_MODE == WORK_MODE_DEBUG
       ESP_LOGI(TAG, "data_raw_temperature: %.3f,%.3f", temperature_degC, temp_lsm6ds3tr);
-      last_time = get_timestamp();
+      last_time = get_timestamp_us();
       ESP_LOGI(TAG, "imu read use: %" PRId64 "us", last_time - start_time);
 #endif
-      float heading = calculate_heading(magnetic_mG[0], magnetic_mG[1]);
+      // heading = calculate_heading(magnetic_mG[0], magnetic_mG[1]);
       float gyro_x = outgyro[0] * gyro_sensitivity;
       float gyro_y = outgyro[1] * gyro_sensitivity;
       float gyro_z = outgyro[2] * gyro_sensitivity;
@@ -423,36 +476,63 @@ void sensor_read_task(void *param) {
                accel_sensitivity);
 #endif
       if (s_send_data) {
-        _generate.packet_generate_imu(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z, mag_x, mag_y, mag_z);
+        if (s_send_imu_data_raw) {
+          _generate.packet_generate_imu(outgyro[0], outgyro[1], outgyro[2], outaccel[0], outaccel[1], outaccel[2], data_raw_magnetic[0], data_raw_magnetic[1],
+                                        data_raw_magnetic[2]);
+        } else {
+          _generate.packet_generate_imu(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z, mag_x, mag_y, mag_z);
+        }
 #if SEND_DATA_BLUE == 1
         ble_tx_rx_send_notify((uint8_t *) _generate.data(), _generate.length());
 #endif
 #if SEND_DATA_UART == 1
-        usb_serial_jtag_write_bytes((uint8_t *) _generate.data(), _generate.length(), 50 / portTICK_PERIOD_MS);
+        usb_serial_jtag_write_bytes((uint8_t *) _generate.data(), _generate.length(), 1 / portTICK_PERIOD_MS);
 #endif
       }
-#endif
     }
+#endif
 
-    uint16_t dummy;
-    int channel = 0;
     extern spi_device_handle_t s_spi_handle;
-    for (int idx = 0; idx < 2; idx++) {
+    for (int idx = 0; idx < 1; idx++) {
+      ad7689[idx]->read_all_channel_data(ad7689[idx], (void *) values[idx]);
       for (int i = 0; i < 8; i++) {
-        channel = ad7689[idx]->read_channel_data(ad7689[idx], i, &dummy);
-        if (channel >= 0 && channel < 8) {
-          values[idx][channel] = dummy;
-          voltage[idx][channel] = ((values[idx][channel] - AD7689_BASE_V) / 65536.0) * 2.5 / 0.35;
-        }
+        voltage[idx][i] = ((values[idx][i] - AD7689_BASE_V) / 65536.0) * 2.5 / 0.35;
+        semg_data[idx * 24 + i * 3] = values[idx][i] & 0xFF;
+        semg_data[idx * 24 + i * 3 + 1] = (values[idx][i] >> 8) & 0xFF;
+        semg_data[idx * 24 + i * 3 + 2] = 0;
       }
     }
+    // 统计fps
+    static uint32_t frame_count = 0;
+    static int64_t fps_start_time = 0;
+    const int64_t FPS_UPDATE_INTERVAL_US = 1000000;  // Update FPS every 1 second
+    static float current_fps = 0.0f;
+    int64_t end_time = get_timestamp_us();
+    frame_count++;
+    int64_t elapsed_time = end_time - fps_start_time;
+    if (elapsed_time >= FPS_UPDATE_INTERVAL_US) {
+      current_fps = (float) frame_count * 1000000.0f / (float) elapsed_time;
+      ESP_LOGI("FPS", "Current FPS: %.2f,%d", current_fps, frame_count);
+      frame_count = 0;
+      fps_start_time = end_time;
+    }
 
-#if WORK_MODE == WORK_MODE_DEBUG
+    if (s_send_data) {
+      _generate.packet_generate_semg(semg_data, 48);
+#if SEND_DATA_BLUE == 1
+      ble_tx_rx_send_notify((uint8_t *) _generate.data(), _generate.length());
+#endif
+#if SEND_DATA_UART == 1
+      usb_serial_jtag_write_bytes((uint8_t *) _generate.data(), _generate.length(), 1 / portTICK_PERIOD_MS);
+#endif
+    }
+
     ESP_LOGI("AD READ", "ADC[1] values: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f ADC[2] values: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", voltage[0][0],
              voltage[0][1], voltage[0][2], voltage[0][3], voltage[0][4], voltage[0][5], voltage[0][6], voltage[0][7], voltage[1][0], voltage[1][1],
              voltage[1][2], voltage[1][3], voltage[1][4], voltage[1][5], voltage[1][6], voltage[1][7]);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+#if WORK_MODE == WORK_MODE_DEBUG
 #endif
-    vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 
@@ -499,10 +579,20 @@ extern "C" void app_main(void) {
       } else {
         ESP_LOG_BUFFER_HEX_LEVEL(TAG, packet_rx, recv.Len(), ESP_LOG_DEBUG);
         switch (recv.dt.Cmd) {
+          case dt_cmd_data_start:
+            s_send_data = true;
+            ESP_LOGI(TAG, "s_send_data is %s", s_send_data ? "true" : "false");
+            break;
+          case dt_cmd_data_end:
+            s_send_data = false;
+            ESP_LOGI(TAG, "s_send_data is %s", s_send_data ? "true" : "false");
+            break;
           case dt_cmd_imu:
-            if (recv.Len() == DT_FIXED_LEN + 1) {
-              s_send_data = recv.Data()[0];
-              ESP_LOGI(TAG, "s_send_data is %s", s_send_data ? "true" : "false");
+            if (recv.Len() == DT_FIXED_LEN + 2) {
+              if (recv.Data()[0] == dt_imu_ctrl_data_type) {
+                s_send_imu_data_raw = recv.Data()[1];
+                ESP_LOGI(TAG, "s_send_imu_data_raw is %s", s_send_imu_data_raw ? "true" : "false");
+              }
             }
             break;
           case dt_cmd_log:

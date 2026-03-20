@@ -65,18 +65,24 @@ bool _spi_ctrl_is_open(const sensor_ctrl_if_t *ctrl) {
   }
   return false;
 }
-void _spi_ctrl_enable(const spi_ctrl_t *spi_ctrl) {
-  if (spi_ctrl && spi_ctrl->enable) {
-    spi_ctrl->enable();
-  } else {
-    ESP_LOGE(TAG, "%s SPI CS not set", __func__);
+void _spi_ctrl_enable(const sensor_ctrl_if_t *ctrl) {
+  if (ctrl) {
+    spi_ctrl_t *spi_ctrl = (spi_ctrl_t *) ctrl;
+    if (spi_ctrl && spi_ctrl->enable) {
+      spi_ctrl->enable();
+    } else {
+      ESP_LOGE(TAG, "%s SPI CS not set", __func__);
+    }
   }
 }
-void _spi_ctrl_disable(const spi_ctrl_t *spi_ctrl) {
-  if (spi_ctrl && spi_ctrl->disable) {
-    spi_ctrl->disable();
-  } else {
-    ESP_LOGE(TAG, "%s SPI CS not set", __func__);
+void _spi_ctrl_disable(const sensor_ctrl_if_t *ctrl) {
+  if (ctrl) {
+    spi_ctrl_t *spi_ctrl = (spi_ctrl_t *) ctrl;
+    if (spi_ctrl && spi_ctrl->disable) {
+      spi_ctrl->disable();
+    } else {
+      ESP_LOGE(TAG, "%s SPI CS not set", __func__);
+    }
   }
 }
 
@@ -89,7 +95,6 @@ static int _spi_ctrl_read_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_l
     return SENSOR_WRONG_STATE;
   }
   esp_err_t ret = ESP_OK;
-  _spi_ctrl_enable(spi_ctrl);
   if (addr_len) {
     uint16_t *v = (uint16_t *) &addr;
     while (addr_len >= 2) {
@@ -108,7 +113,6 @@ static int _spi_ctrl_read_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_l
     t.rx_buffer = data;
     ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
   }
-  _spi_ctrl_disable(spi_ctrl);
   return ret == ESP_OK ? SENSOR_OK : SENSOR_DRV_ERR;
 }
 
@@ -121,7 +125,6 @@ static int _spi_ctrl_write_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_
     return SENSOR_WRONG_STATE;
   }
   esp_err_t ret = ESP_OK;
-  _spi_ctrl_enable(spi_ctrl);
   if (addr_len) {
     uint16_t *v = (uint16_t *) &addr;
     while (addr_len >= 2) {
@@ -139,7 +142,6 @@ static int _spi_ctrl_write_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_
     t.tx_buffer = data;
     ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
   }
-  _spi_ctrl_disable(spi_ctrl);
   return ret == ESP_OK ? SENSOR_OK : SENSOR_DRV_ERR;
 }
 
@@ -153,20 +155,18 @@ static int _spi_ctrl_write_read_reg(const sensor_ctrl_if_t *ctrl, void *tx_data,
     ESP_LOGE(TAG, "%s, SPI not open", __func__);
     return SENSOR_WRONG_STATE;
   }
-  _spi_ctrl_enable(spi_ctrl);
   spi_transaction_t trans;
   memset(&trans, 0, sizeof(spi_transaction_t));
   trans.cmd = 0;
   trans.tx_buffer = tx_data;
   trans.length = (8 * tx_len);
   trans.rx_buffer = rx_data;
-  trans.rxlength = (8 * rx_len);
-  esp_err_t ret = spi_device_transmit(spi_ctrl->spi_handle, &trans);
+  // trans.rxlength = (8 * rx_len);
+  // esp_err_t ret = spi_device_transmit(spi_ctrl->spi_handle, &trans);
+  esp_err_t ret = spi_device_polling_transmit(spi_ctrl->spi_handle, &trans);
   if (ret != ESP_OK) {
     ESP_LOGE(TAG, "%s: Fail to write to dev %s", __func__, esp_err_to_name(ret));
   }
-
-  _spi_ctrl_disable(spi_ctrl);
   return ret == ESP_OK ? SENSOR_OK : SENSOR_DRV_ERR;
 }
 
@@ -195,6 +195,8 @@ sensor_ctrl_if_t *sensor_new_spi_ctrl(sensor_spi_cfg_t *spi_cfg) {
   ctrl->base.write_reg = _spi_ctrl_write_reg;
   ctrl->base.write_read_reg = _spi_ctrl_write_read_reg;
   ctrl->base.close = _spi_ctrl_close;
+  ctrl->base.enable = _spi_ctrl_enable;
+  ctrl->base.disable = _spi_ctrl_disable;
   ctrl->enable = spi_cfg->enable;
   ctrl->disable = spi_cfg->disable;
   if (!spi_is_open) {
@@ -208,5 +210,6 @@ sensor_ctrl_if_t *sensor_new_spi_ctrl(sensor_spi_cfg_t *spi_cfg) {
     ctrl->spi_handle = s_spi_handle;
     ctrl->is_open = true;
   }
+  ESP_LOGI(TAG, "%s,%p", __func__, ctrl);
   return &ctrl->base;
 }
