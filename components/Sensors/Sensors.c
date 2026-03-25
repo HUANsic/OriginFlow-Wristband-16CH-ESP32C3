@@ -8,6 +8,7 @@
 #include <driver/gpio.h>
 #include <esp_check.h>
 #include <esp_log.h>
+#include <rom/ets_sys.h>
 
 #define _SENSORS_SPI_HOST SPI2_HOST
 
@@ -85,7 +86,42 @@ int32_t lsm6ds3_write_reg(const stmdev_ctx_t *ctx, uint8_t reg,
 
 void IMU_Init(void)
 {
-    // Initialize LSM6DS3
+}
+
+void Sensors_Init(void)
+{
+    // Initialize SPI peripheral
+    spi_bus_config_t buscfg = {
+        .mosi_io_num = 7,
+        .miso_io_num = 5,
+        .sclk_io_num = 6,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+    };
+    ESP_LOGI("SENSORS INIT", "Performing bus initialization");
+    ESP_ERROR_CHECK(spi_bus_initialize(_SENSORS_SPI_HOST, &buscfg, SPI_DMA_DISABLED));
+    // Lump all sensors into one device and switch between them using manual CS control
+    spi_device_interface_config_t devcfg = {
+        .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 8 MHz
+        .command_bits = 0,                 // no command phase, only data
+        .address_bits = 0,                 // no address phase, only data
+        .dummy_bits = 0,                   // no dummy phase
+        .mode = 3,                         // SPI mode 3: CPOL=1, CPHA=1
+        .spics_io_num = -1,                // we will use manual CS control
+        .queue_size = 2,
+    };
+    ESP_LOGI("SENSORS INIT", "Performing device initialization");
+    ESP_LOGI("MEM", "Free heap: %d bytes", esp_get_free_heap_size());
+    ESP_LOGI("SENSORS INIT", "111");
+    ESP_LOGI("MEM", "Minimum free heap: %d bytes", esp_get_minimum_free_heap_size());
+    ESP_LOGI("SENSORS INIT", "222");
+    // ESP_ERROR_CHECK(spi_bus_add_device(_SENSORS_SPI_HOST, &devcfg, &_sensors_hspidevice));
+    esp_err_t ret = spi_bus_add_device(_SENSORS_SPI_HOST, &devcfg, &_sensors_hspidevice);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE("SENSOR", "spi_bus_add_device failed: %s", esp_err_to_name(ret));
+    }
+
     // IMU INT
     gpio_config_t io_conf = {
         .pin_bit_mask = 1ULL << _IMU_LSM6DS3_INT_GPIO_NUM,
@@ -108,41 +144,9 @@ void IMU_Init(void)
     io_conf.pin_bit_mask = 1ULL << _ADC2_CS_GPIO_NUM;
     ESP_ERROR_CHECK(gpio_config(&io_conf));
     gpio_set_level(_ADC2_CS_GPIO_NUM, 1); // active low
-}
+    ets_delay_us(10);                     // Delay for 10 microseconds before the next operation
 
-void Sensors_Init(void)
-{
-    // Initialize SPI peripheral
-    spi_bus_config_t buscfg = {
-        .mosi_io_num = 7,
-        .miso_io_num = 5,
-        .sclk_io_num = 6,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-    };
-    ESP_LOGI("SENSORS INIT", "Performing bus initialization");
-    ESP_ERROR_CHECK(spi_bus_initialize(_SENSORS_SPI_HOST, &buscfg, SPI_DMA_DISABLED));
-    // Lump all sensors into one device and switch between them using manual CS control
-    spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 8 * 1000 * 1000, // Clock out at 8 MHz
-        .command_bits = 0,                 // no command phase, only data
-        .address_bits = 0,                 // no address phase, only data
-        .dummy_bits = 0,                   // no dummy phase
-        .mode = 2,                         // SPI mode 2
-        .spics_io_num = -1,                // we will use manual CS control
-        .queue_size = 2,
-    };
-    ESP_LOGI("SENSORS INIT", "Performing device initialization");
-    ESP_LOGI("MEM", "Free heap: %d bytes", esp_get_free_heap_size());
-    ESP_LOGI("SENSORS INIT", "111");
-    ESP_LOGI("MEM", "Minimum free heap: %d bytes", esp_get_minimum_free_heap_size());
-    ESP_LOGI("SENSORS INIT", "222");
-    // ESP_ERROR_CHECK(spi_bus_add_device(_SENSORS_SPI_HOST, &devcfg, &_sensors_hspidevice));
-    esp_err_t ret = spi_bus_add_device(_SENSORS_SPI_HOST, &devcfg, &_sensors_hspidevice);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE("SENSOR", "spi_bus_add_device failed: %s", esp_err_to_name(ret));
-    }
-    IMU_Init();
-    // LIS3MDL_Init(hspi); // Initialize LIS3MDL, you can implement this function similarly to IMU_Init
+    // disable I2C on IMU
+    lsm6ds3_i2c_interface_set(NULL, LSM6DS3_I2C_DISABLE);
+    ets_delay_us(10);
 }

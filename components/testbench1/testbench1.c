@@ -464,9 +464,21 @@ void test_ad_read()
         gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
         ets_delay_us(10); // Delay for 10 microseconds before the next reading
 
-        sprintf((char *)dummy, "A1CH1:%d, A1CH2:%d, A1CH3:%d, A1CH4:%d, A1CH5:%d, A1CH6:%d, A1CH7:%d, A1CH8:%d, A2CH11:%d, A2CH2:%d, A2CH3:%d, A2CH4:%d, A2CH5:%d, A2CH6:%d, A2CH7:%d, A2CH8:%d \n", (int16_t)values[0], (int16_t)values[1], (int16_t)values[2], (int16_t)values[3], (int16_t)values[4], (int16_t)values[5], (int16_t)values[6], (int16_t)values[7], (int16_t)values[8], (int16_t)values[9], (int16_t)values[10], (int16_t)values[11], (int16_t)values[12], (int16_t)values[13], (int16_t)values[14], (int16_t)values[15]);
+        // cfg = AD_BuildConfig(0, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        // AD_Transaction(_sensors_hspidevice, &cfg, values + 15);
+        // gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
+        // ets_delay_us(10); // Delay for 10 microseconds before the next reading
+        // cfg = AD_BuildConfig(0, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        // AD_Transaction(_sensors_hspidevice, &cfg, values + 15);
+        // gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
+        // ets_delay_us(10); // Delay for 10 microseconds before the next reading
+        // cfg = AD_BuildConfig(0, AD_INCC_BIP_SING, 7, 1, AD_REF_EXT_NOBUF_NOTEMP, AD_SEQ_DISABLE, 0);
+        // AD_Transaction(_sensors_hspidevice, &cfg, values + 15);
+        // gpio_set_level(_ADC2_CS_GPIO_NUM, 1);
+        // ets_delay_us(10); // Delay for 10 microseconds before the next reading
+
+        sprintf((char *)dummy, "A1CH0:%d, A1CH1:%d, A1CH2:%d, A1CH3:%d, A1CH4:%d, A1CH5:%d, A1CH6:%d, A1CH7:%d, A2CH0:%d, A2CH1:%d, A2CH2:%d, A2CH3:%d, A2CH4:%d, A2CH5:%d, A2CH6:%d, A2CH7:%d \n", (int16_t)values[0], (int16_t)values[1], (int16_t)values[2], (int16_t)values[3], (int16_t)values[4], (int16_t)values[5], (int16_t)values[6], (int16_t)values[7], (int16_t)values[8], (int16_t)values[9], (int16_t)values[10], (int16_t)values[11], (int16_t)values[12], (int16_t)values[13], (int16_t)values[14], (int16_t)values[15]);
         usb_serial_jtag_write_bytes(dummy, strlen((char *)dummy), 0);
-        // ESP_LOGI("AD7689", "A1CH1:%d, A1CH2:%d, A1CH3:%d, A1CH4:%d, A1CH5:%d, A1CH6:%d, A1CH7:%d, A1CH8:%d, A2CH11:%d, A2CH2:%d, A2CH3:%d, A2CH4:%d, A2CH5:%d, A2CH6:%d, A2CH7:%d, A2CH8:%d \n", (int16_t)values[0], (int16_t)values[1], (int16_t)values[2], (int16_t)values[3], (int16_t)values[4], (int16_t)values[5], (int16_t)values[6], (int16_t)values[7], (int16_t)values[8], (int16_t)values[9], (int16_t)values[10], (int16_t)values[11], (int16_t)values[12], (int16_t)values[13], (int16_t)values[14], (int16_t)values[15]);
-        ets_delay_us(20000); // Delay for 0.02 second before the next round
+        ets_delay_us(100000); // Delay for 0.1 second before the next round
     }
 }
