@@ -20,7 +20,7 @@ set(APP_REQUIRES
     # app_update
     sensors
     LSM6DS3
-
+    esp_driver_gptimer
     # testbench1
     protocol_parser
 )

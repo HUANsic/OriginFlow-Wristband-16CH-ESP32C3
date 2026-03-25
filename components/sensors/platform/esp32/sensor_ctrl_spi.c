@@ -13,7 +13,6 @@
 #include "sensor_default.h"
 
 #define TAG "SPI_If"
-static volatile bool spi_is_open = false;
 typedef struct {
   sensor_ctrl_if_t base;
   bool is_open;
@@ -22,7 +21,6 @@ typedef struct {
   void (*disable)(); /* SPI CS 1 */
   spi_device_handle_t spi_handle;
 } spi_ctrl_t;
-spi_device_handle_t s_spi_handle;
 
 int _spi_ctrl_open(const sensor_ctrl_if_t *ctrl, void *cfg, int cfg_size) {
   if (ctrl == NULL || cfg == NULL) {
@@ -40,7 +38,7 @@ int _spi_ctrl_open(const sensor_ctrl_if_t *ctrl, void *cfg, int cfg_size) {
       .address_bits = 0,        // no address phase, only data
       .dummy_bits = 0,          // no dummy phase
       .mode = 0,                // SPI mode 0
-      .queue_size = 6,          // queue 7 transactions at a time
+      .queue_size = 10,         // queue 7 transactions at a time
   };
   dev_cfg.spics_io_num = -1;
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 4))
@@ -50,10 +48,8 @@ int _spi_ctrl_open(const sensor_ctrl_if_t *ctrl, void *cfg, int cfg_size) {
 #else
   spi_host_device_t host_id = HSPI_HOST;
 #endif
-  int ret = spi_bus_add_device(host_id, &dev_cfg, &s_spi_handle);
+  int ret = spi_bus_add_device(host_id, &dev_cfg, &spi_ctrl->spi_handle);
   spi_ctrl->is_open = true;
-  spi_ctrl->spi_handle = s_spi_handle;
-  spi_is_open = true;
   ESP_LOGI(TAG, "%s success", __func__);
   return ret == 0 ? SENSOR_OK : SENSOR_DRV_ERR;
 }
@@ -101,7 +97,8 @@ static int _spi_ctrl_read_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_l
       spi_transaction_t t = {0};
       t.length = 2 * 8;
       t.tx_buffer = v;
-      ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+      // ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+      ret = spi_device_polling_transmit(spi_ctrl->spi_handle, &t);
       v++;
       addr_len -= 2;
     }
@@ -111,7 +108,8 @@ static int _spi_ctrl_read_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_l
     t.length = data_len * 8;
     t.rxlength = data_len * 8;
     t.rx_buffer = data;
-    ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+    // ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+    ret = spi_device_polling_transmit(spi_ctrl->spi_handle, &t);
   }
   return ret == ESP_OK ? SENSOR_OK : SENSOR_DRV_ERR;
 }
@@ -131,7 +129,8 @@ static int _spi_ctrl_write_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_
       spi_transaction_t t = {0};
       t.length = 2 * 8;
       t.tx_buffer = v;
-      ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+      // ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+      ret = spi_device_polling_transmit(spi_ctrl->spi_handle, &t);
       v++;
       addr_len -= 2;
     }
@@ -140,7 +139,8 @@ static int _spi_ctrl_write_reg(const sensor_ctrl_if_t *ctrl, int addr, int addr_
     spi_transaction_t t = {0};
     t.length = data_len * 8;
     t.tx_buffer = data;
-    ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+    // ret = spi_device_transmit(spi_ctrl->spi_handle, &t);
+    ret = spi_device_polling_transmit(spi_ctrl->spi_handle, &t);
   }
   return ret == ESP_OK ? SENSOR_OK : SENSOR_DRV_ERR;
 }
@@ -199,16 +199,11 @@ sensor_ctrl_if_t *sensor_new_spi_ctrl(sensor_spi_cfg_t *spi_cfg) {
   ctrl->base.disable = _spi_ctrl_disable;
   ctrl->enable = spi_cfg->enable;
   ctrl->disable = spi_cfg->disable;
-  if (!spi_is_open) {
-    int ret = _spi_ctrl_open(&ctrl->base, spi_cfg, sizeof(sensor_spi_cfg_t));
-    if (ret != 0) {
-      ESP_LOGE(TAG, "Fail to open SPI driver");
-      free(ctrl);
-      return NULL;
-    }
-  } else {
-    ctrl->spi_handle = s_spi_handle;
-    ctrl->is_open = true;
+  int ret = _spi_ctrl_open(&ctrl->base, spi_cfg, sizeof(sensor_spi_cfg_t));
+  if (ret != 0) {
+    ESP_LOGE(TAG, "Fail to open SPI driver");
+    free(ctrl);
+    return NULL;
   }
   ESP_LOGI(TAG, "%s,%p", __func__, ctrl);
   return &ctrl->base;

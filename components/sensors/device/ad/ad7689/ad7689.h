@@ -101,9 +101,6 @@ typedef struct {
 
 #define AD7689_CODEC_DEFAULT_ADDR (0x48)
 
-/**
- * @brief ES8311 codec configuration
- */
 typedef struct {
   const sensor_ctrl_if_t *ctrl_if; /*!< Codec Control interface */
   const sensor_gpio_if_t *gpio_if; /*!< Codec GPIO interface */

@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "prv_include/common.h"
-#include "sensor_if.h"
 
 typedef struct {
   sensor_if_t base;
@@ -135,7 +134,6 @@ static int ad7689_read_all_channel_data(const sensor_if_t *h, void *data) {
   tx_buf[1] = ad7689_config2 & 0xff;
   codec->cfg.ctrl_if->enable(codec->cfg.ctrl_if);
   codec->cfg.ctrl_if->write_read_reg(codec->cfg.ctrl_if, tx_buf, 2, rx_buf, 2);
-
   tx_buf[0] = 0;
   tx_buf[1] = 0;
   codec->cfg.ctrl_if->enable(codec->cfg.ctrl_if);

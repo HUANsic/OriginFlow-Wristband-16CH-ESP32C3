@@ -179,9 +179,6 @@ int32_t imu_write_regs(const stmdev_ctx_t *ctx, uint8_t reg, uint8_t *data, uint
   return 0;
 }
 
-void IMU_Init(void) {
-  // Initialize LSM6DS3
-}
 #if IMU_SERIAL_INTERFACE_MODE == IMU_SERIAL_INTERFACE_MODE_I2C
 i2c_master_dev_handle_t addDevice(uint16_t devAddr, uint32_t clkSpeed) {
   i2c_device_config_t dev_cfg = {};
@@ -257,7 +254,7 @@ void sensor_init(void) {
       .dummy_bits = 0,                     // no dummy phase
       .mode = 0,                           // SPI mode 0
       .spics_io_num = -1,                  // we will use manual CS control
-      .queue_size = 6,
+      .queue_size = 10,
   };
   ESP_LOGI("SENSORS INIT", "Performing device initialization");
   ESP_LOGI("MEM", "Free heap: %d bytes", esp_get_free_heap_size());
@@ -266,7 +263,6 @@ void sensor_init(void) {
   if (ret != ESP_OK) {
     ESP_LOGE("SENSOR", "spi_bus_add_device failed: %s", esp_err_to_name(ret));
   }
-  IMU_Init();
 #else
   i2c_master_bus_config_t i2c_mst_config = {};
   i2c_mst_config.clk_source = I2C_CLK_SRC_DEFAULT;
