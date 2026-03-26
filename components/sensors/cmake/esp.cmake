@@ -13,5 +13,5 @@ if(CONFIG_AD7689_SUPPORT)
 endif()
 
 idf_component_register(SRCS ${SENSOR_SRC}
-    REQUIRES driver LSM6DS3 LIS3MDL Utilities esp_driver_i2c
+    REQUIRES driver LSM6DS3 LIS3MDL esp_driver_i2c
     INCLUDE_DIRS ${SENSOR_INCLUDE_DIRS})
